@@ -8,6 +8,4 @@
 import Foundation
 
 protocol NetworkServiceProtocol {
-    func sendRequest(company: String)
-    func getData(from url: URL, completion: @escaping (Data?, URLResponse?, Error?) -> ())
-}
+	func loadQuote(for symbol: String, completion: @escaping (Result<QuoteModel, CustomErrors>) -> Void)}

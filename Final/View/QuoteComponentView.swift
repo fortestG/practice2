@@ -12,6 +12,8 @@ import SnapKit
 private extension QuoteComponentView {
     struct Appearance {
         let height: CGFloat = 20
+		let labelFont: UIFont = UIFont.systemFont(ofSize: 15)
+		let titleFont: UIFont = UIFont.systemFont(ofSize: 16)
     }
 }
 
@@ -57,6 +59,8 @@ final class QuoteComponentView: UIView {
     
     private func configure() {
         self.backgroundColor = .white
+		title.font = appearance.titleFont
+		descriptionLabel.font = appearance.labelFont
         descriptionLabel.text =  "-"
     }
 }

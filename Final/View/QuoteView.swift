@@ -18,6 +18,7 @@ private extension QuoteView {
         let sideInsets: CGFloat = 20
         let topImageOffset: CGFloat = 40
         let size: CGSize = CGSize(width: 70, height: 70)
+		let companyLabelFont: UIFont = UIFont.systemFont(ofSize: 12)
     }
 }
 
@@ -57,8 +58,8 @@ final class QuoteView: UIView {
     func updateView(company: String,
                     symbol: String,
                     price: Double,
-                    priceChange: Double,
-                    logoURL: URL) {
+                    priceChange: Double
+	) {
         priceView.descriptionLabel.text = "\(price)"
         companyView.descriptionLabel.text = company
         priceChangeView.descriptionLabel.text = "\(priceChange)"
@@ -71,6 +72,10 @@ final class QuoteView: UIView {
         } else if priceChange == 0 {
             self.priceChangeView.descriptionLabel.textColor = .black
         }
+		
+		guard let imageUrl = URL(string: "https://storage.googleapis.com/iex/api/logos/\(symbol).png")
+			else { return }
+		self.companyLogo.downloaded(from: imageUrl)
     }
     
     func resetView() {
@@ -122,6 +127,7 @@ final class QuoteView: UIView {
     
     private func configure() {
         self.backgroundColor = .white
+		companyView.descriptionLabel.font = appearance.companyLabelFont
         priceView.title.text = "Price"
         companyView.title.text = "Company name"
         priceChangeView.title.text = "Price Change"

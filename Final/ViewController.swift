@@ -7,26 +7,14 @@
 
 import UIKit
 
-protocol ViewInputProtocol {
-    func updateDisplayData(company: String,
-                           symbol: String,
-                           price: Double,
-                           priceChange: Double,
-                           logoURL: URL)
-    func resetView()
-    func showAlert()
-}
-
 class ViewController: UIViewController {
+	
     private var networkService: NetworkServiceProtocol?
+	var quote: QuoteModel?
     private let customView = QuoteView()
-    
-    @IBOutlet weak var companyNameLabel: UILabel!
-    @IBOutlet weak var price: UILabel!
-    @IBOutlet weak var symbol: UILabel!
-    @IBOutlet weak var priceChange: UILabel!
-    @IBOutlet weak var companyLogo: UIImageView!
-    
+	var selectedRow: Int?
+	var selectedSymbol: String?
+
     private let companies: [String: String] = ["Apple": "AAPL", "Microsoft": "MCRSFT", "Google": "GOOG", "Amazon": "AMZN", "Facebook": "FB"]
     
     override func loadView() {
@@ -35,9 +23,8 @@ class ViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        // Do any additional setup after loading the view.
-        networkService = NetworkService(vc: self)
-        customView.backgroundColor = .gray
+		networkService = NetworkService()
+        customView.backgroundColor = .white
         self.customView.companyPickerView.dataSource = self
         self.customView.companyPickerView.delegate = self
         self.customView.activityIndicator.hidesWhenStopped = true
@@ -46,19 +33,54 @@ class ViewController: UIViewController {
     
     private func requestQuoteUpdate() {
         self.customView.activityIndicator.startAnimating()
-        let selectedRow = self.customView.companyPickerView.selectedRow(inComponent: 0)
-        let selectedSymbol = Array(self.companies.values)[selectedRow]
-        self.networkService?.sendRequest(company: selectedSymbol)
+		self.selectedRow = self.customView.companyPickerView.selectedRow(inComponent: 0)
+		self.selectedSymbol = Array(self.companies.values)[selectedRow ?? 0]
+		resetView()
+		self.networkService?.loadQuote(for: selectedSymbol ?? "") { [weak self] result in
+			guard let self = self else { return }
+			switch result {
+				case .success(let model):
+				DispatchQueue.main.async {
+					self.customView.activityIndicator.stopAnimating()
+					guard let change = model.change,
+						  let price = model.latestPrice,
+						  let symbol = model.symbol,
+						  let companyName = model.companyName
+					else { return }
+					self.customView.updateView(company: companyName,
+											   symbol: symbol,
+											   price: price,
+											   priceChange: change
+					)
+				}
+				case .failure(let error):
+				self.handle(error: error)
+			}
+		}
     }
-    
-    private func downloadImage(from url: URL) {
-        networkService!.getData(from: url) { data, response, error in
-            guard let data = data, error == nil else { return }
-            DispatchQueue.main.async() { [weak self] in
-                self?.customView.companyLogo.image = UIImage(data: data)
-            }
-        }
-    }
+	
+	func resetView() {
+		self.customView.resetView()
+	}
+	
+	func handle(error: CustomErrors) {
+		switch error {
+		case .UnknownError:
+			DispatchQueue.main.async {
+				self.showAlert(title: "Errow", message: "Somthing went wrong!")
+			}
+		}
+	}
+
+	func showAlert(title: String, message: String) {
+		let alertVC = UIAlertController(
+			title: title,
+			message: message,
+			preferredStyle: .alert)
+		let action = UIAlertAction(title: "OK", style: .default, handler: nil)
+		alertVC.addAction(action)
+		self.present(alertVC, animated: true, completion: nil)
+	}
 }
 
 extension ViewController: UIPickerViewDataSource {
@@ -69,50 +91,16 @@ extension ViewController: UIPickerViewDataSource {
     func pickerView(_ pickerView: UIPickerView, numberOfRowsInComponent component: Int) -> Int {
         return self.companies.keys.count
     }
-    
-    func pickerView(_ pickerView: UIPickerView, titleForRow row: Int, forComponent component: Int) -> String? {
-        return Array(self.companies.keys)[row]
-    }
-    
-    func pickerView(_ pickerView: UIPickerView, didSelectRow row: Int, inComponent component: Int) {
-        self.customView.activityIndicator.startAnimating()
-        let selectedSymbol = Array(self.companies.values)[row]
-        self.networkService?.sendRequest(company: selectedSymbol)
-    }
 }
 
 extension ViewController: UIPickerViewDelegate {
-    
+	func pickerView(_ pickerView: UIPickerView, titleForRow row: Int, forComponent component: Int) -> String? {
+		return Array(self.companies.keys)[row]
+	}
+	
+	func pickerView(_ pickerView: UIPickerView, didSelectRow row: Int, inComponent component: Int) {
+		self.customView.activityIndicator.startAnimating()
+		self.selectedSymbol = Array(self.companies.values)[row]
+		requestQuoteUpdate()
+	}
 }
-
-
-extension ViewController: ViewInputProtocol {
-    func updateDisplayData(company: String,
-                           symbol: String,
-                           price: Double,
-                           priceChange: Double,
-                           logoURL: URL) {
-        self.customView.activityIndicator.stopAnimating()
-        self.customView.updateView(company: company,
-                                   symbol: symbol,
-                                   price: price,
-                                   priceChange: priceChange,
-                                   logoURL: logoURL)
-        downloadImage(from: logoURL)
-    }
-    
-    func resetView() {
-        self.customView.resetView()
-    }
-    
-    func showAlert() {
-        let alertVC = UIAlertController(
-            title: "Error",
-            message: "Something went wrong",
-            preferredStyle: .alert)
-        let action = UIAlertAction(title: "OK", style: .default, handler: nil)
-        alertVC.addAction(action)
-        self.present(alertVC, animated: true, completion: nil)
-    }
-}
-
